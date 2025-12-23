@@ -2,33 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { loadHasher } from './loadHasher.js';
 
-/**
- * Options for how file change results are returned.
- * @typedef {"boolean" | "detail" | "callback"} ChangeCheckMode
- */
-
-/**
- * Callback info passed when mode === "callback".
- * @typedef {Object} ChangeInfo
- * @property {string} filePath
- * @property {boolean} changed
- * @property {boolean} suspicious
- * @property {number} mtimeMs
- * @property {number} size
- * @property {string | null} hash
- */
-
-/**
- * Options for checkFile and checkFolder.
- * @typedef {Object} CheckOptions
- * @property {ChangeCheckMode} [mode="boolean"]
- * @property {(info: ChangeInfo) => void} [onChange]
- */
-
-/**
- * Persistent file-change checker using mtime+size with xxh3 fallback.
- */
-
 class FolderChangeChecker {
   constructor({ mtimePath, hashPath, backend = 'wasm' }) {
     this.mtimePath = mtimePath;
@@ -38,7 +11,6 @@ class FolderChangeChecker {
     this.mtimes = this._loadJSON(mtimePath);
     this.hashes = this._loadJSON(hashPath);
 
-    // Load hasher asynchronously
     this.ready = loadHasher(backend).then((hasher) => {
       this.hasher = hasher;
     });
@@ -154,12 +126,6 @@ class FolderChangeChecker {
     }
   }
 
-  /**
-   * Save object as JSON to file.
-   * @private
-   * @param {string} filePath
-   * @param {Object} obj
-   */
   _saveJSON(filePath, obj) {
     fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
   }

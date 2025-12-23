@@ -1,11 +1,16 @@
 const fs = require('fs');
 const XXH = require('xxhashjs');
+const { normalizeHex } = require('./normalizeHex.cjs');
 
-module.exports = function createJsHasher() {
+function createJsHasher() {
   return {
     hashFile(filePath) {
       const data = fs.readFileSync(filePath);
-      return XXH.h64().update(data).digest().toString(16);
+      return normalizeHex(
+        XXH.h64(0).update(data).digest().toString(16)
+      );
     }
   };
-};
+}
+
+module.exports = { createJsHasher };

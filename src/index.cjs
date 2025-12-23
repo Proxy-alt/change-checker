@@ -2,36 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadHasher } = require('./loadHasher.cjs');
 
-/**
- * Options for how file change results are returned.
- * @typedef {"boolean" | "detail" | "callback"} ChangeCheckMode
- */
-
-/**
- * Callback info passed when mode === "callback".
- * @typedef {Object} ChangeInfo
- * @property {string} filePath
- * @property {boolean} changed
- * @property {boolean} suspicious
- * @property {number} mtimeMs
- * @property {number} size
- * @property {string | null} hash
- */
-
-/**
- * Options for checkFile and checkFolder.
- * @typedef {Object} CheckOptions
- * @property {ChangeCheckMode} [mode="boolean"]
- * @property {(info: ChangeInfo) => void} [onChange]
- */
-
-/**
- * Persistent file-change checker using mtime+size with xxh3 fallback.
- */
 module.exports = class FolderChangeChecker {
-  /**
-   * @param {{ mtimePath: string, hashPath: string, backend?: "wasm" | "native" | "js" }} options
-   */
   constructor({ mtimePath, hashPath, backend = 'wasm' }) {
     this.mtimePath = mtimePath;
     this.hashPath = hashPath;
@@ -40,7 +11,6 @@ module.exports = class FolderChangeChecker {
     this.mtimes = this._loadJSON(mtimePath);
     this.hashes = this._loadJSON(hashPath);
 
-    // Load hasher asynchronously
     this.ready = loadHasher(backend).then((hasher) => {
       this.hasher = hasher;
     });
@@ -50,13 +20,7 @@ module.exports = class FolderChangeChecker {
     await this.ready;
     return this.hasher.hashFile(filePath);
   }
-  /**
-   * Determine if metadata looks suspicious enough to require hashing.
-   * @private
-   * @param {{mtimeMs:number,size:number}|undefined} prev
-   * @param {fs.Stats} stat
-   * @returns {boolean}
-   */
+
   _isSuspicious(prev, stat) {
     if (!prev) return true;
 
@@ -69,12 +33,6 @@ module.exports = class FolderChangeChecker {
     return false;
   }
 
-  /**
-   * Check a single file for changes.
-   * @param {string} filePath
-   * @param {CheckOptions} [options]
-   * @returns {Promise<boolean | ChangeInfo>}
-   */
   async checkFile(filePath, options = {}) {
     const { mode = 'boolean', onChange } = options;
 
@@ -131,12 +89,6 @@ module.exports = class FolderChangeChecker {
     return changed;
   }
 
-  /**
-   * Recursively check all files in a folder.
-   * @param {string} folderPath
-   * @param {CheckOptions} [options]
-   * @returns {Promise<Array<string> | Array<ChangeInfo>>}
-   */
   async checkFolder(folderPath, options = {}) {
     const results = [];
 
@@ -150,25 +102,21 @@ module.exports = class FolderChangeChecker {
         } else {
           const result = await this.checkFile(full, options);
 
-          if (options.mode === 'detail') {
-            results.push(result);
-          } else if (options.mode === 'boolean' && result) {
-            results.push(full);
+          if (result) {
+            results.push(options.mode === 'detail' ? result : full);
           }
         }
       }
     };
 
     await walk(folderPath);
-    return results; // ← You also need this
+
+    this._saveJSON(this.mtimePath, this.mtimes);
+    this._saveJSON(this.hashPath, this.hashes);
+
+    return results;
   }
 
-  /**
-   * Load JSON from file, or return empty object if file doesn't exist.
-   * @private
-   * @param {string} filePath
-   * @returns {Object}
-   */
   _loadJSON(filePath) {
     try {
       const data = fs.readFileSync(filePath, 'utf8');
@@ -178,12 +126,6 @@ module.exports = class FolderChangeChecker {
     }
   }
 
-  /**
-   * Save object as JSON to file.
-   * @private
-   * @param {string} filePath
-   * @param {Object} obj
-   */
   _saveJSON(filePath, obj) {
     fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
   }

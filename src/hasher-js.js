@@ -1,11 +1,14 @@
 import fs from 'fs';
-import * as XXH from 'xxhashjs';
+import XXH from 'xxhashjs';
+import { normalizeHex } from './normalizeHex.js';
 
 export function createJsHasher() {
   return {
     hashFile(filePath) {
       const data = fs.readFileSync(filePath);
-      return XXH.h64().update(data).digest().toString(16);
+      return normalizeHex(
+        XXH.h64(0).update(data).digest().toString(16)
+      );
     }
   };
 }

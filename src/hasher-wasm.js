@@ -1,5 +1,6 @@
 import fs from 'fs';
 import xxhash from 'xxhash-wasm';
+import { normalizeHex } from './normalizeHex.js';
 
 export async function createWasmHasher() {
   const api = await xxhash();
@@ -7,7 +8,7 @@ export async function createWasmHasher() {
   return {
     hashFile(filePath) {
       const data = fs.readFileSync(filePath);
-      return api.h64Raw(data).toString(16);
+      return normalizeHex(api.h64Raw(data).toString(16));
     }
   };
 }
