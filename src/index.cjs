@@ -1,6 +1,6 @@
-import fs from "fs";
-import path from "path";
-import { loadHasher } from "./loadHasher.js";
+const fs = require("fs");
+const path = require("path");
+const { loadHasher } = require("./loadHasher.cjs");
 
 /**
  * Options for how file change results are returned.
@@ -28,8 +28,7 @@ import { loadHasher } from "./loadHasher.js";
 /**
  * Persistent file-change checker using mtime+size with xxh3 fallback.
  */
-
-export default class FolderChangeChecker {
+module.exports = class FolderChangeChecker {
   /**
    * @param {{ mtimePath: string, hashPath: string, backend?: "wasm" | "native" | "js" }} options
    */
@@ -51,7 +50,6 @@ export default class FolderChangeChecker {
     await this.ready;
     return this.hasher.hashFile(filePath);
   }
-
   /**
    * Determine if metadata looks suspicious enough to require hashing.
    * @private
@@ -168,4 +166,4 @@ export default class FolderChangeChecker {
 
     return results;
   }
-}
+};
