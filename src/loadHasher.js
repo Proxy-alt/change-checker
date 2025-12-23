@@ -1,6 +1,6 @@
-import { createWasmHasher } from "./hasher-wasm.js";
-import { createNativeHasher } from "./hasher-native.js";
-import { createJsHasher } from "./hasher-js.js";
+import { createJsHasher } from './hasher-js.js';
+import { createNativeHasher } from './hasher-native.js';
+import { createWasmHasher } from './hasher-wasm.js';
 
 /**
  * Load the appropriate hashing backend.
@@ -9,13 +9,13 @@ import { createJsHasher } from "./hasher-js.js";
  */
 export async function loadHasher(backend) {
   switch (backend) {
-    case "native":
+    case 'native':
       return createNativeHasher();
 
-    case "js":
+    case 'js':
       return createJsHasher();
 
-    case "wasm":
+    case 'wasm':
     default:
       return await createWasmHasher();
   }

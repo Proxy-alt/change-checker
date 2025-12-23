@@ -1,5 +1,5 @@
-const fs = require("fs");
-const xxhash = require("xxhash-wasm");
+const fs = require('fs');
+const xxhash = require('xxhash-wasm');
 
 exports.createWasmHasher = async function () {
   const api = await xxhash();
@@ -8,6 +8,6 @@ exports.createWasmHasher = async function () {
     hashFile(filePath) {
       const data = fs.readFileSync(filePath);
       return api.h64Raw(data).toString(16);
-    },
+    }
   };
 };

@@ -1,6 +1,6 @@
-const { createWasmHasher } = require("./hasher-wasm.cjs");
-const { createNativeHasher } = require("./hasher-native.cjs");
-const { createJsHasher } = require("./hasher-js.cjs");
+const { createWasmHasher } = require('./hasher-wasm.cjs');
+const { createNativeHasher } = require('./hasher-native.cjs');
+const { createJsHasher } = require('./hasher-js.cjs');
 
 /**
  * Load the appropriate hashing backend.
@@ -9,13 +9,13 @@ const { createJsHasher } = require("./hasher-js.cjs");
  */
 exports.loadHasher = async function (backend) {
   switch (backend) {
-    case "native":
+    case 'native':
       return createNativeHasher();
 
-    case "js":
+    case 'js':
       return createJsHasher();
 
-    case "wasm":
+    case 'wasm':
     default:
       return await createWasmHasher();
   }

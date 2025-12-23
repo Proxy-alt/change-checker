@@ -31,12 +31,12 @@ declare module "change-checker" {
     checkFile(
       filePath: string,
       options?: CheckOptions
-    ): boolean | ChangeInfo | Promise<boolean | ChangeInfo>;
+    ): Promise<boolean | ChangeInfo>;
 
     checkFolder(
       folderPath: string,
       options?: CheckOptions
-    ): Array<string> | Array<ChangeInfo> | Promise<Array<string> | Array<ChangeInfo>>;
+    ): Promise<Array<string> | Array<ChangeInfo>>;
   }
 
   export default FolderChangeChecker;

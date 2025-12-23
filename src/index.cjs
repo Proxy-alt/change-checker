@@ -1,6 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { loadHasher } = require("./loadHasher.cjs");
+const fs = require('fs');
+const path = require('path');
+const { loadHasher } = require('./loadHasher.cjs');
 
 /**
  * Options for how file change results are returned.
@@ -32,7 +32,7 @@ module.exports = class FolderChangeChecker {
   /**
    * @param {{ mtimePath: string, hashPath: string, backend?: "wasm" | "native" | "js" }} options
    */
-  constructor({ mtimePath, hashPath, backend = "wasm" }) {
+  constructor({ mtimePath, hashPath, backend = 'wasm' }) {
     this.mtimePath = mtimePath;
     this.hashPath = hashPath;
     this.backend = backend;
@@ -73,10 +73,10 @@ module.exports = class FolderChangeChecker {
    * Check a single file for changes.
    * @param {string} filePath
    * @param {CheckOptions} [options]
-   * @returns {boolean | ChangeInfo}
+   * @returns {Promise<boolean | ChangeInfo>}
    */
-  checkFile(filePath, options = {}) {
-    const { mode = "boolean", onChange } = options;
+  async checkFile(filePath, options = {}) {
+    const { mode = 'boolean', onChange } = options;
 
     const stat = fs.statSync(filePath);
     const { mtimeMs, size } = stat;
@@ -84,14 +84,14 @@ module.exports = class FolderChangeChecker {
     const prev = this.mtimes[filePath];
 
     if (prev && prev.mtimeMs === mtimeMs && prev.size === size) {
-      if (mode === "detail") {
+      if (mode === 'detail') {
         return {
           filePath,
           changed: false,
           suspicious: false,
           mtimeMs,
           size,
-          hash: null,
+          hash: null
         };
       }
       return false;
@@ -103,7 +103,7 @@ module.exports = class FolderChangeChecker {
     let changed = true;
 
     if (suspicious) {
-      newHash = this.computeHash(filePath);
+      newHash = await this.computeHash(filePath);
       const oldHash = this.hashes[filePath];
       changed = newHash !== oldHash;
       this.hashes[filePath] = newHash;
@@ -117,14 +117,14 @@ module.exports = class FolderChangeChecker {
       suspicious,
       mtimeMs,
       size,
-      hash: newHash,
+      hash: newHash
     };
 
-    if (mode === "callback" && typeof onChange === "function") {
+    if (mode === 'callback' && typeof onChange === 'function') {
       onChange(info);
     }
 
-    if (mode === "detail") {
+    if (mode === 'detail') {
       return info;
     }
 
@@ -135,35 +135,56 @@ module.exports = class FolderChangeChecker {
    * Recursively check all files in a folder.
    * @param {string} folderPath
    * @param {CheckOptions} [options]
-   * @returns {Array<string> | Array<ChangeInfo>}
+   * @returns {Promise<Array<string> | Array<ChangeInfo>>}
    */
-  checkFolder(folderPath, options = {}) {
+  async checkFolder(folderPath, options = {}) {
     const results = [];
 
-    const walk = (dir) => {
+    const walk = async (dir) => {
       for (const entry of fs.readdirSync(dir)) {
         const full = path.join(dir, entry);
         const stat = fs.statSync(full);
 
         if (stat.isDirectory()) {
-          walk(full);
+          await walk(full);
         } else {
-          const result = this.checkFile(full, options);
+          const result = await this.checkFile(full, options);
 
-          if (options.mode === "detail") {
+          if (options.mode === 'detail') {
             results.push(result);
-          } else if (options.mode === "boolean" && result) {
+          } else if (options.mode === 'boolean' && result) {
             results.push(full);
           }
         }
       }
     };
 
-    walk(folderPath);
+    await walk(folderPath);
+    return results; // ← You also need this
+  }
 
-    this._saveJSON(this.mtimePath, this.mtimes);
-    this._saveJSON(this.hashPath, this.hashes);
+  /**
+   * Load JSON from file, or return empty object if file doesn't exist.
+   * @private
+   * @param {string} filePath
+   * @returns {Object}
+   */
+  _loadJSON(filePath) {
+    try {
+      const data = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(data);
+    } catch {
+      return {};
+    }
+  }
 
-    return results;
+  /**
+   * Save object as JSON to file.
+   * @private
+   * @param {string} filePath
+   * @param {Object} obj
+   */
+  _saveJSON(filePath, obj) {
+    fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
   }
 };

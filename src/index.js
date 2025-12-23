@@ -1,6 +1,6 @@
-import fs from "fs";
-import path from "path";
-import { loadHasher } from "./loadHasher.js";
+import fs from 'fs';
+import path from 'path';
+import { loadHasher } from './loadHasher.js';
 
 /**
  * Options for how file change results are returned.
@@ -29,11 +29,8 @@ import { loadHasher } from "./loadHasher.js";
  * Persistent file-change checker using mtime+size with xxh3 fallback.
  */
 
-export default class FolderChangeChecker {
-  /**
-   * @param {{ mtimePath: string, hashPath: string, backend?: "wasm" | "native" | "js" }} options
-   */
-  constructor({ mtimePath, hashPath, backend = "wasm" }) {
+class FolderChangeChecker {
+  constructor({ mtimePath, hashPath, backend = 'wasm' }) {
     this.mtimePath = mtimePath;
     this.hashPath = hashPath;
     this.backend = backend;
@@ -52,13 +49,6 @@ export default class FolderChangeChecker {
     return this.hasher.hashFile(filePath);
   }
 
-  /**
-   * Determine if metadata looks suspicious enough to require hashing.
-   * @private
-   * @param {{mtimeMs:number,size:number}|undefined} prev
-   * @param {fs.Stats} stat
-   * @returns {boolean}
-   */
   _isSuspicious(prev, stat) {
     if (!prev) return true;
 
@@ -71,14 +61,8 @@ export default class FolderChangeChecker {
     return false;
   }
 
-  /**
-   * Check a single file for changes.
-   * @param {string} filePath
-   * @param {CheckOptions} [options]
-   * @returns {boolean | ChangeInfo}
-   */
-  checkFile(filePath, options = {}) {
-    const { mode = "boolean", onChange } = options;
+  async checkFile(filePath, options = {}) {
+    const { mode = 'boolean', onChange } = options;
 
     const stat = fs.statSync(filePath);
     const { mtimeMs, size } = stat;
@@ -86,14 +70,14 @@ export default class FolderChangeChecker {
     const prev = this.mtimes[filePath];
 
     if (prev && prev.mtimeMs === mtimeMs && prev.size === size) {
-      if (mode === "detail") {
+      if (mode === 'detail') {
         return {
           filePath,
           changed: false,
           suspicious: false,
           mtimeMs,
           size,
-          hash: null,
+          hash: null
         };
       }
       return false;
@@ -105,7 +89,7 @@ export default class FolderChangeChecker {
     let changed = true;
 
     if (suspicious) {
-      newHash = this.computeHash(filePath);
+      newHash = await this.computeHash(filePath);
       const oldHash = this.hashes[filePath];
       changed = newHash !== oldHash;
       this.hashes[filePath] = newHash;
@@ -119,53 +103,66 @@ export default class FolderChangeChecker {
       suspicious,
       mtimeMs,
       size,
-      hash: newHash,
+      hash: newHash
     };
 
-    if (mode === "callback" && typeof onChange === "function") {
+    if (mode === 'callback' && typeof onChange === 'function') {
       onChange(info);
     }
 
-    if (mode === "detail") {
+    if (mode === 'detail') {
       return info;
     }
 
     return changed;
   }
 
-  /**
-   * Recursively check all files in a folder.
-   * @param {string} folderPath
-   * @param {CheckOptions} [options]
-   * @returns {Array<string> | Array<ChangeInfo>}
-   */
-  checkFolder(folderPath, options = {}) {
+  async checkFolder(folderPath, options = {}) {
     const results = [];
 
-    const walk = (dir) => {
+    const walk = async (dir) => {
       for (const entry of fs.readdirSync(dir)) {
         const full = path.join(dir, entry);
         const stat = fs.statSync(full);
 
         if (stat.isDirectory()) {
-          walk(full);
+          await walk(full);
         } else {
-          const result = this.checkFile(full, options);
+          const result = await this.checkFile(full, options);
 
-          if (options.mode === "detail") {
-            results.push(result);
-          } else if (options.mode === "boolean" && result) {
-            results.push(full);
+          if (result) {
+            results.push(options.mode === 'detail' ? result : full);
           }
         }
       }
     };
 
-    walk(folderPath);
+    await walk(folderPath);
 
     this._saveJSON(this.mtimePath, this.mtimes);
     this._saveJSON(this.hashPath, this.hashes);
 
     return results;
   }
+
+  _loadJSON(filePath) {
+    try {
+      const data = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(data);
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Save object as JSON to file.
+   * @private
+   * @param {string} filePath
+   * @param {Object} obj
+   */
+  _saveJSON(filePath, obj) {
+    fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
+  }
 }
+
+export default FolderChangeChecker;
